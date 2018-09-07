@@ -2,6 +2,6 @@
 
 Usege: 
 ```
-bchecker-srv --serve port
+bchecker-srv --serve -ip=<ip_address> -port=<port>
 ```
 
