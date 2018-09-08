@@ -4,8 +4,30 @@ require_once __DIR__.'/vendor/autoload.php';
 
 use Studypet\Tools\BracketChecker;
 
-$ip_address = "0.0.0.0";
-$port = "10001";
+
+$options = getopt("a:p:");
+
+if (!(isset($options['a'])&&isset($options['p']))) {
+    echo "Brackets checker server\n";
+    echo "Usage: \e[1m{$argv[0]} -a <ip_address> -p <port>\n";
+    exit (0);
+}
+
+if (!filter_var($options['a'], FILTER_VALIDATE_IP)) {
+    echo "Brackets checker server\n";
+    echo "Error: incorrect ip-address\n";
+    exit (1);
+}
+
+if (!filter_var($options['p'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1025, 'max_range' => 65535]])) {
+    echo "Brackets checker server\n";
+    echo "Error: incorrect port number (must be a number in 1024..65535 range)\n";
+    exit (1);
+}
+
+
+$ip_address = $options['a'];
+$port = $options['p'];
 
 $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
 socket_bind($socket, $ip_address, $port);
