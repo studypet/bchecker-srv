@@ -1,0 +1,15 @@
+{
+  "name": "studypet/bchecker-srv",
+  "description": "description_text",
+  "type": "project",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Yuri Zanin",
+      "email": "studypet@yandex.ru"
+    }
+  ],
+  "require": {
+    "studypet/bracket-checker": "dev-master"
+  }
+}
