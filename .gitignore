@@ -82,3 +82,5 @@ composer.phar
 
 tests/
 test.txt
+
+/test.php
