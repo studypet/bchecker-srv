@@ -10,4 +10,5 @@ ADD config.yaml /opt/bchecker/config.yaml
 
 WORKDIR /opt/bchecker
 
-CMD ["./bchecker-srv", "./config.yaml"]
+#CMD ["./bchecker-srv", "./config.yaml"]
+ENTRYPOINT ["./bchecker-srv", "./config.yaml"]
