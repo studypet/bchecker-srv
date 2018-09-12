@@ -3,31 +3,43 @@
 require_once __DIR__.'/vendor/autoload.php';
 
 use Studypet\Tools\BracketChecker;
+use Symfony\Component\Yaml\Yaml;
+use Symfony\Component\Yaml\Exception\ParseException;
 
-
-$options = getopt("a:p:");
-
-if (!(isset($options['a'])&&isset($options['p']))) {
+if (count($argv)<2) {
     echo "Brackets checker server\n";
-    echo "Usage: \e[1m{$argv[0]} -a <ip_address> -p <port>\n";
+    echo "Usage: \e[1m{$argv[0]} <config.yaml>\n";
     exit (0);
 }
 
-if (!filter_var($options['a'], FILTER_VALIDATE_IP)) {
-    echo "Brackets checker server\n";
-    echo "Error: incorrect ip-address\n";
-    exit (1);
+$config_file = $argv[1];
+
+try {
+    $config = Yaml::parseFile($config_file);
+} catch (ParseException $exception) {
+    echo "Unable to parse YAML file: {$config_file}, {$exception->getMessage()}\n";
+    exit(1);
 }
 
-if (!filter_var($options['p'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1025, 'max_range' => 65535]])) {
-    echo "Brackets checker server\n";
-    echo "Error: incorrect port number (must be a number in 1024..65535 range)\n";
-    exit (1);
+$errors = false;
+echo "Brackets checker server\n";
+
+if (!filter_var($config['ip'], FILTER_VALIDATE_IP)) {
+    echo "Error: incorrect ip-address in config\n";
+    $errors = true;
 }
 
+if (!filter_var($config['port'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1025, 'max_range' => 65535]])) {
+    echo "Error: incorrect port number in config (must be a number in 1024..65535 range)\n";
+    $errors = true;
+}
 
-$ip_address = $options['a'];
-$port = $options['p'];
+if($errors) {
+    exit(1);
+}
+
+$ip_address = $config['ip'];
+$port       = $config['port'];
 
 $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
 socket_bind($socket, $ip_address, $port);
@@ -51,6 +63,47 @@ do {
         $server = true;
         $connections[$pid] = true;
 
+
+        pcntl_signal(SIGHUP, function ($signo) use (
+                &$ip_address,
+                &$port,
+                &$socket,
+                $connections,
+                &$fork_need,
+                $config_file
+        ) {
+            if($signo == SIGHUP) {
+                $new_config = Yaml::parseFile($config_file);
+                $ip_changed = !($ip_address == $new_config['ip']);
+                $port_changed = !($port == $new_config['port']);
+                $msg = "";
+                if ($ip_changed) {
+                    $msg .= "IP address has changed [{$ip_address} --> {$new_config['ip']}] \n";
+                }
+                if ($port_changed) {
+                    $msg .= "Port has changed [{$port} --> {$new_config['port']}] \n";
+                }
+                if ($ip_changed || $port_changed) {
+                    print $msg;
+                    print "Restarting server... \n";
+                    foreach ($connections as $cpid => $connected) {
+                        print "Shutting down connection {$cpid}...\n";
+                        posix_kill($cpid, SIGKILL);
+                    }
+
+                    socket_close($socket);
+
+                    $ip_address = $new_config['ip'];
+                    $port       = $new_config['port'];
+
+                    $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+                    socket_bind($socket, $ip_address, $port);
+                    socket_listen($socket, 100);
+                    $fork_need = true;
+                }
+            }
+        }, false);
+
         pcntl_signal(SIGUSR1, function ($signo) use (&$fork_need) {
             if ($signo == SIGUSR1) {
                 $fork_need = true;
@@ -63,8 +116,8 @@ do {
                     print "Shutting down connection {$cpid}...\n";
                     posix_kill($cpid, SIGKILL);
                 }
-                sleep(3);
                 print "Server is shutting down... By... :) \n";
+                sleep(3);
                 socket_close($socket);
                 exit (0);
             }
