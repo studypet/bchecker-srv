@@ -10,6 +10,7 @@
     }
   ],
   "require": {
-    "studypet/bracket-checker": "dev-master"
+    "studypet/bracket-checker": "dev-master",
+    "symfony/yaml": "4.1.*"
   }
 }
